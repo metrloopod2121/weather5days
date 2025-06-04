@@ -1,0 +1,45 @@
+# Xcode
+DerivedData/
+*.xcworkspace
+!default.xcworkspace
+xcuserdata/
+*.xcuserstate
+
+# SwiftPM
+.build/
+.swiftpm/xcode/package.xcworkspace/
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/screenshots/
+fastlane/test_output/
+
+# Archives
+*.xcarchive
+
+# Provisioning profiles
+*.mobileprovision
+
+# Symbolication
+*.dSYM.zip
+*.dSYM
+
+# User-specific
+*.DS_Store
+*.swp
+*.swo
+*.orig
+
+# IDE settings
+.idea/
+*.iml
+
+# Xcode playgrounds
+timeline.xctimeline
+playground.xcworkspace

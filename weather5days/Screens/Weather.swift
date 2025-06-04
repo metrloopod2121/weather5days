@@ -10,8 +10,8 @@ import SwiftUI
 
 struct WeatherView: View {
     
-    private var weatherManager = WeatherService()
     @State private var forecast: ForecastResponse?
+    private let weatherManager = WeatherService()
     
     @AppStorage("temperatureUnit") private var temperatureUnit: String = "C"
     @AppStorage("windSpeedUnit") private var windSpeedUnit: String = "kph"
@@ -37,154 +37,161 @@ struct WeatherView: View {
         return formatter
     }()
     
+    var body: some View {
+        VStack(alignment: .trailing) {
+            headerView
+            Spacer()
+            if let forecast = forecast {
+                forecastListView(forecast)
+            }
+        }
+        .task { await fetchForecast() }
+    }
+}
+
+// MARK: - Subviews
+
+private extension WeatherView {
     
-    private func formattedDate(from string: String) -> String {
-        let inputFormatter = DateFormatter()
-        inputFormatter.dateFormat = "yyyy-MM-dd"
-        guard let date = inputFormatter.date(from: string) else {
-            return string
+    var headerView: some View {
+        VStack {
+            HStack {
+                Text(UserDefaults.standard.string(forKey: "forecastDays") ?? "3")
+                    .font(.custom("Futura", size: 140))
+                    .foregroundStyle(.white)
+                    .shadow(radius: 15)
+                VStack(alignment: .leading) {
+                    Text("WEATHER")
+                    Text("DAYS")
+                }
+                .font(.custom(RC.font, size: 60))
+                .foregroundStyle(.white)
+                .shadow(radius: 15)
+            }
         }
-        
-        let calendar = Calendar.current
-        if calendar.isDateInTomorrow(date) {
-            return "Tomorrow"
-        }
-        
-        if calendar.isDateInToday(date) {
-            return "Today"
-        }
-        
-        return dateFormatter.string(from: date)
+        .frame(maxWidth: .infinity)
+        .background(
+            Image("headBack")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+        )
     }
     
-    private func formattedTime(from string: String) -> String {
+    func forecastListView(_ forecast: ForecastResponse) -> some View {
+        let city = UserDefaults.standard.string(forKey: "city") ?? "Moscow"
+        
+        return VStack(alignment: .trailing) {
+            Text("in \(city)")
+                .padding(.trailing, 30)
+                .font(.custom("Futura", size: 20))
+                .foregroundStyle(.white)
+                .shadow(radius: 15)
+            
+            List(forecast.forecast.forecastday, id: \.date) { day in
+                dayForecastRow(day: day, current: forecast.current)
+            }
+            .listStyle(.plain)
+            .refreshable {
+                await fetchForecast()
+            }
+        }
+    }
+    
+    func dayForecastRow(day: ForecastDay, current: Current) -> some View {
+        VStack(alignment: .leading) {
+            HStack {
+                Text(formattedDate(from: day.date))
+                    .font(.largeTitle)
+                Spacer()
+                Text(current.condition.text)
+                    .font(.subheadline)
+                    .foregroundStyle(.gray)
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    ForEach(Array(stride(from: 0, to: day.hour.count, by: forecastHourInterval)), id: \.self) { i in
+                        hourlyForecastCard(for: day.hour[i])
+                    }
+                }
+                .padding(.horizontal, 8)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+    
+    func hourlyForecastCard(for hour: Hour) -> some View {
+        VStack(spacing: 8) {
+            Text(formattedTime(from: hour.time))
+                .foregroundStyle(.gray)
+                .font(.system(size: forecastFontSize))
+            
+            AsyncImage(url: URL(string: "https:\(hour.condition.icon)")) { image in
+                image
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: forecastIconWidth, height: forecastIconWidth)
+            } placeholder: {
+                ProgressView()
+            }
+            
+            Text(formattedTemperature(hour.temp_c))
+                .font(.system(size: forecastFontSize))
+            
+            Text(formattedWindSpeed(hour.wind_kph))
+                .font(.system(size: forecastFontSize))
+            
+            Text("\(hour.humidity, specifier: "%.0f")%")
+                .font(.system(size: forecastFontSize))
+        }
+        .frame(width: forecastCardWidth)
+    }
+}
+
+// MARK: - Helpers
+
+private extension WeatherView {
+    
+    func formattedDate(from string: String) -> String {
+        let inputFormatter = DateFormatter()
+        inputFormatter.dateFormat = "yyyy-MM-dd"
+        guard let date = inputFormatter.date(from: string) else { return string }
+        
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInTomorrow(date) {
+            return "Tomorrow"
+        } else {
+            return dateFormatter.string(from: date)
+        }
+    }
+    
+    func formattedTime(from string: String) -> String {
         let inputFormatter = DateFormatter()
         inputFormatter.dateFormat = "yyyy-MM-dd HH:mm"
-        guard let date = inputFormatter.date(from: string) else {
-            return string
-        }
+        guard let date = inputFormatter.date(from: string) else { return string }
 
         let formatter = DateFormatter()
         formatter.dateFormat = timeFormat == "24h" ? "HH:mm" : "h:mm a"
         return formatter.string(from: date)
     }
     
-    func dayForecastRow(day: ForecastDay, current: Current) -> some View {
-        VStack {
-            VStack(alignment: .leading) {
-                HStack {
-                    Text(formattedDate(from: day.date))
-                        .font(.largeTitle)
-                    Spacer()
-                    Text(current.condition.text)
-                        .font(.subheadline)
-                        .foregroundStyle(.gray)
-                }
-                HStack {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 16) {
-                            ForEach(Array(stride(from: 0, to: day.hour.count, by: forecastHourInterval)), id: \.self) { i in
-                                VStack(spacing: 8) {
-                                    Text(formattedTime(from: day.hour[i].time))
-                                        .foregroundStyle(.gray)
-                                        .font(.system(size: forecastFontSize))
-                                    AsyncImage(url: URL(string: "https:\(day.hour[i].condition.icon)")) { image in
-                                        image
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: forecastIconWidth, height: forecastIconWidth)
-                                    } placeholder: {
-                                        ProgressView()
-                                    }
-                                    Text(String(format: "%.1f", locale: Locale(identifier: "en_US"), temperatureUnit == "C" ? day.hour[i].temp_c : (day.hour[i].temp_c * 9/5 + 32)) + " °\(temperatureUnit)")
-                                        .font(.system(size: forecastFontSize))
-                                    Text(String(format: "%.0f", windSpeedUnit == "kph" ? day.hour[i].wind_kph : day.hour[i].wind_kph / 1.609) + " \(windSpeedUnit)")
-                                        .font(.system(size: forecastFontSize))
-                                    Text("\(day.hour[i].humidity, specifier: "%.0f")%")
-                                        .font(.system(size: forecastFontSize))
-                                }
-                                .frame(width: forecastCardWidth)
-                            }
-                        }
-                        .padding(.horizontal, 8)
-                    }
-                    
-                }
-            }
-        }
-        .padding(.vertical, 8)
+    func formattedTemperature(_ celsius: Double) -> String {
+        let value = temperatureUnit == "C" ? celsius : (celsius * 9/5 + 32)
+        return String(format: "%.1f °%@", locale: Locale(identifier: "en_US"), value, temperatureUnit)
     }
     
-    var body: some View {
-
-        VStack(alignment: .trailing) {
-            VStack {
-                HStack {
-                    Text(UserDefaults.standard.string(forKey: "forecastDays") ?? "3")
-                        .font(Font.custom("Futura", size: 140))
-                        .foregroundStyle(.white)
-                        .shadow(radius: 15)
-                    VStack(alignment: .leading) {
-                        Text("WEATHER")
-                            .font(Font.custom(RC.font, size: 60))
-                            .foregroundStyle(.white)
-                            .shadow(radius: 15)
-                        Text("DAYS")
-                            .font(Font.custom(RC.font, size: 60))
-                            .foregroundStyle(.white)
-                            .shadow(radius: 15)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .background(
-                Image("headBack")
-                    .resizable()
-                    .scaledToFill()
-                    .ignoresSafeArea()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            )
-            
-            Spacer()
-            
-            if let forecast = forecast {
-                let city = UserDefaults.standard.string(forKey: "city") ?? "Moscow"
-                Text("in \(city)")
-                    .padding(.trailing, 30)
-                    .font(Font.custom("Futura", size: 20))
-                    .foregroundStyle(.white)
-                    .shadow(radius: 15)
-                
-                
-
-                List(forecast.forecast.forecastday, id: \.date) { day in
-                    dayForecastRow(day: day, current: forecast.current)
-                }
-                .listStyle(.plain)
-                .refreshable {
-                    do {
-                        self.forecast = try await weatherManager.getWeather()
-                    } catch {
-                        print("Ошибка: \(error)")
-                    }
-                }
-                
-            }
-        }
-        .task {
-            do {
-                forecast = try await weatherManager.getWeather()
-            } catch {
-                print("Ошибка: \(error)")
-            }
-        }
-        
-
+    func formattedWindSpeed(_ kph: Double) -> String {
+        let value = windSpeedUnit == "kph" ? kph : kph / 1.609
+        return String(format: "%.0f %@", value, windSpeedUnit)
     }
     
-}
-
-
-#Preview {
-    ContentView()
+    func fetchForecast() async {
+        do {
+            forecast = try await weatherManager.getWeather()
+        } catch {
+            print("Ошибка: \(error)")
+        }
+    }
 }

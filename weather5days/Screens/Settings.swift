@@ -69,11 +69,7 @@ struct SettingsView: View {
                     Spacer()
                 }
                 .listRowBackground(Color.clear)
-
-
-    //            }
-    //            .navigationTitle("Настройки")
-        }
+            }
         }
     }
 }
