@@ -27,7 +27,6 @@ struct WeatherService {
         let apiKeyQuery = "key=\(apiKey)"
         
         let urlString = "\(baseURL)\(cityQuery)&\(daysQuery)&\(apiKeyQuery)"
-        print(urlString)
         guard let url = URL(string: urlString) else {
             print("Invalid URL")
             return nil
@@ -46,7 +45,6 @@ struct WeatherService {
         
         let (data, _) = try await URLSession.shared.data(from: url)
         let forecast = try JSONDecoder().decode(ForecastResponse.self, from: data)
-        print(forecast.forecast.forecastday.count)
         return forecast
     }
 

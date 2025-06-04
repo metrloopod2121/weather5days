@@ -19,6 +19,17 @@ struct WeatherView: View {
     @AppStorage("forecastHourInterval") private var forecastHourInterval: Int = 3
     @AppStorage("timeFormat") private var timeFormat: String = "24h"
     
+    private var forecastCardWidth: CGFloat {
+        UIDevice.current.userInterfaceIdiom == .pad ? 100 : 60
+    }
+    
+    private var forecastIconWidth: CGFloat {
+        UIDevice.current.userInterfaceIdiom == .pad ? 80 : 40
+    }
+
+    private var forecastFontSize: CGFloat {
+        UIDevice.current.userInterfaceIdiom == .pad ? 18 : 12
+    }
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -76,23 +87,23 @@ struct WeatherView: View {
                                 VStack(spacing: 8) {
                                     Text(formattedTime(from: day.hour[i].time))
                                         .foregroundStyle(.gray)
-                                        .font(.caption)
+                                        .font(.system(size: forecastFontSize))
                                     AsyncImage(url: URL(string: "https:\(day.hour[i].condition.icon)")) { image in
                                         image
                                             .resizable()
                                             .scaledToFit()
-                                            .frame(width: 40, height: 40)
+                                            .frame(width: forecastIconWidth, height: forecastIconWidth)
                                     } placeholder: {
                                         ProgressView()
                                     }
                                     Text(String(format: "%.1f", locale: Locale(identifier: "en_US"), temperatureUnit == "C" ? day.hour[i].temp_c : (day.hour[i].temp_c * 9/5 + 32)) + " °\(temperatureUnit)")
-                                        .font(.footnote)
+                                        .font(.system(size: forecastFontSize))
                                     Text(String(format: "%.0f", windSpeedUnit == "kph" ? day.hour[i].wind_kph : day.hour[i].wind_kph / 1.609) + " \(windSpeedUnit)")
-                                        .font(.footnote)
+                                        .font(.system(size: forecastFontSize))
                                     Text("\(day.hour[i].humidity, specifier: "%.0f")%")
-                                        .font(.footnote)
+                                        .font(.system(size: forecastFontSize))
                                 }
-                                .frame(width: 60)
+                                .frame(width: forecastCardWidth)
                             }
                         }
                         .padding(.horizontal, 8)

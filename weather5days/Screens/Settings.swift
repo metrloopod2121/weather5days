@@ -19,7 +19,7 @@ struct SettingsView: View {
     @AppStorage("useCurrentLocation") private var useCurrentLocation: Bool = false
 
     var body: some View {
-        NavigationView {
+        VStack {
             Form {
                 Section(header: Text("Город")) {
                     TextField("Введите город", text: $city)
@@ -71,8 +71,9 @@ struct SettingsView: View {
                 .listRowBackground(Color.clear)
 
 
-            }
-            .navigationTitle("Настройки")
+    //            }
+    //            .navigationTitle("Настройки")
+        }
         }
     }
 }
